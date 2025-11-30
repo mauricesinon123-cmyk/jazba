@@ -1,0 +1,15 @@
+
+CREATE TABLE IF NOT EXISTS pins (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ name TEXT NOT NULL,
+ lat REAL NOT NULL,
+ lng REAL NOT NULL,
+ description TEXT,
+ photo_filename TEXT,
+ date TEXT
+);
+CREATE TABLE IF NOT EXISTS users (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ username TEXT UNIQUE,
+ password TEXT
+);

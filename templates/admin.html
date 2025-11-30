@@ -1,0 +1,122 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="stylesheet" href="/static/styles.css">
+<!-- Leaflet for the map picker -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+<div class="admin-container">
+<h1>Add Memory</h1>
+<form id="admin-add-form" action="/api/pins/add" method="POST" enctype="multipart/form-data">
+<input name="name" placeholder="Title">
+<input name="date" placeholder="Date">
+<div style="display:flex;gap:10px;">
+    <input id="lat" name="lat" placeholder="Latitude">
+    <input id="lng" name="lng" placeholder="Longitude">
+</div>
+<textarea name="description" placeholder="Description"></textarea>
+<input type="file" name="photo">
+<div style="display:flex;gap:10px;align-items:center;">
+    <button type="submit">Add Pin</button>
+    <button type="button" id="open-map-picker">Pick on map</button>
+</div>
+</form>
+
+<h2>Existing Pins</h2>
+<div class="pin-list">
+{% for p in pins %}
+<div class="pin-card">
+<h3>{{p[1]}}</h3>
+<form action="/api/pins/delete/{{p[0]}}" method="POST">
+<button>Delete</button>
+</form>
+</div>
+{% endfor %}
+    </div>
+
+    <!-- Map Picker Modal (only available on admin page) -->
+    <div id="map-picker-modal" class="modal" style="display:none;">
+        <div class="modal-card">
+            <h3 style="margin-top:0">Pick Location & Add Memory</h3>
+            <div id="picker-map" style="height:320px;border-radius:12px;margin-bottom:10px;border:1px solid #eee"></div>
+            <form id="picker-form" enctype="multipart/form-data">
+                <input id="picker-name" name="name" placeholder="Title" required>
+                <input id="picker-date" name="date" placeholder="Date">
+                <div style="display:flex;gap:8px;">
+                    <input id="picker-lat" name="lat" placeholder="Latitude" readonly>
+                    <input id="picker-lng" name="lng" placeholder="Longitude" readonly>
+                </div>
+                <textarea id="picker-desc" name="description" placeholder="Description"></textarea>
+                <input id="picker-photo" type="file" name="photo">
+                <div style="display:flex;gap:10px;margin-top:10px;">
+                    <button type="submit">Submit</button>
+                    <button type="button" id="picker-cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+    // Map picker behavior
+    (() => {
+        const openBtn = document.getElementById('open-map-picker');
+        const modal = document.getElementById('map-picker-modal');
+        const cancel = document.getElementById('picker-cancel');
+        const pickerForm = document.getElementById('picker-form');
+        const pickerMapEl = document.getElementById('picker-map');
+        let pickerMap = null;
+        let pickerMarker = null;
+
+        function showModal(){
+            modal.style.display = 'flex';
+            modal.style.position = 'fixed';
+            modal.style.left = 0; modal.style.top = 0; modal.style.width = '100%'; modal.style.height = '100%';
+            modal.style.justifyContent = 'center'; modal.style.alignItems = 'center';
+            modal.style.background = 'rgba(0,0,0,0.35)';
+            // init map once
+            if(!pickerMap){
+                pickerMap = L.map(pickerMapEl).setView([0,0],2);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(pickerMap);
+                pickerMap.on('click', (e)=>{
+                    const lat = e.latlng.lat.toFixed(6);
+                    const lng = e.latlng.lng.toFixed(6);
+                    document.getElementById('picker-lat').value = lat;
+                    document.getElementById('picker-lng').value = lng;
+                    if(pickerMarker) pickerMap.removeLayer(pickerMarker);
+                    pickerMarker = L.marker([lat,lng]).addTo(pickerMap);
+                });
+            }
+            setTimeout(()=>{ pickerMap.invalidateSize(); }, 200);
+        }
+
+        function hideModal(){
+            modal.style.display = 'none';
+        }
+
+        openBtn.addEventListener('click', showModal);
+        cancel.addEventListener('click', hideModal);
+
+        pickerForm.addEventListener('submit', async (ev)=>{
+            ev.preventDefault();
+            const fd = new FormData(pickerForm);
+            try{
+                const res = await fetch('/api/pins/add', { method: 'POST', body: fd, credentials: 'same-origin' });
+                if(!res.ok){ alert('Failed to add pin'); return; }
+                hideModal();
+                // sync lat/lng back to admin form
+                document.getElementById('lat').value = document.getElementById('picker-lat').value;
+                document.getElementById('lng').value = document.getElementById('picker-lng').value;
+                // reload the page to show new pin in list
+                window.location.reload();
+            }catch(err){
+                console.error(err); alert('Error adding pin');
+            }
+        });
+    })();
+    </script>
+
+</body>
+</html>
