@@ -14,9 +14,19 @@ os.makedirs(UPLOAD, exist_ok=True)
 def db():
     return sqlite3.connect(DB, check_same_thread=False)
 
+
 def init_db():
-    with db() as con:
-        con.executescript(open("schema.sql").read())
+    """Create the SQLite database and apply schema from `schema.sql` located
+    in the application root. This uses absolute paths so it works under
+    Gunicorn/Render where the current working directory may differ.
+    """
+    schema_path = os.path.join(app.root_path, "schema.sql")
+    if not os.path.exists(schema_path):
+        raise FileNotFoundError(f"schema.sql not found at {schema_path}")
+    # Use a direct sqlite3 connection to avoid recursion with db()
+    with sqlite3.connect(DB) as con:
+        with open(schema_path, "r", encoding="utf-8") as f:
+            con.executescript(f.read())
 
 @app.route("/login", methods=["GET","POST"])
 def login():
@@ -99,20 +109,21 @@ def delete(id):
     return redirect("/admin")
 
 if __name__=="__main__":
-    if not os.path.exists(DB): init_db()
+    if not os.path.exists(DB):
+        try:
+            init_db()
+            print(f"Initialized database at {DB}")
+        except Exception as e:
+            print(f"Failed to initialize DB: {e}")
     app.run(debug=True)
 
-# create_admin.py
-import sqlite3, hashlib
-from app import DB
+# When running under Gunicorn/Render we may not execute the __main__ block.
+# Ensure the DB and schema exist on import so the app can start cleanly.
+if not os.path.exists(DB):
+    try:
+        init_db()
+        print(f"Initialized database at {DB}")
+    except Exception as e:
+        print(f"Warning: could not initialize DB at import time: {e}")
 
-username = "admin"
-password = "yourpassword"   # CHANGE THIS
-
-pw_hash = hashlib.sha256(password.encode()).hexdigest()
-
-con = sqlite3.connect(DB)
-con.execute("INSERT INTO users (username,password) VALUES (?,?)", (username, pw_hash))
-con.commit()
-con.close()
 
