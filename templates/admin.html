@@ -30,9 +30,14 @@
 {% for p in pins %}
 <div class="pin-card">
 <h3>{{p[1]}}</h3>
-<form action="/api/pins/delete/{{p[0]}}" method="POST">
-<button>Delete</button>
-</form>
+<div style="display:flex;gap:8px;">
+    <form action="/edit/{{p[0]}}" method="GET" style="margin:0;">
+        <button>Edit</button>
+    </form>
+    <form action="/api/pins/delete/{{p[0]}}" method="POST" style="margin:0;">
+        <button>Delete</button>
+    </form>
+</div>
 </div>
 {% endfor %}
     </div>

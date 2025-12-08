@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="stylesheet" href="/static/styles.css">
+<!-- Leaflet for map picking -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+    #edit-map { height: 320px; border: 1px solid #eee; border-radius: 8px; margin-bottom:10px }
+    .map-note { font-size: 0.9rem; color: #444; margin-bottom:6px }
+</style>
+</head>
+<body>
+<div class="admin-container">
+    <h1>Edit Memory</h1>
+    <form action="/api/pins/edit/{{ pin.id }}" method="POST" enctype="multipart/form-data">
+        <input name="name" placeholder="Title" value="{{ pin.name }}">
+        <input name="date" placeholder="Date" value="{{ pin.date }}">
+
+        <div class="map-note">Pick a location on the map below (default). You can still edit coordinates manually if needed.</div>
+        <div id="edit-map"></div>
+
+        <div style="display:flex;gap:10px;">
+            <input id="lat" name="lat" placeholder="Latitude" value="{{ pin.lat }}" readonly>
+            <input id="lng" name="lng" placeholder="Longitude" value="{{ pin.lng }}" readonly>
+        </div>
+
+        <textarea name="description" placeholder="Description">{{ pin.description }}</textarea>
+        <div style="margin:8px 0;">
+            {% if pin.photo_filename %}
+                <div>Current photo:</div>
+                <img src="/static/photos/{{ pin.photo_filename }}" style="max-width:240px;border-radius:8px;margin-top:6px;display:block;">
+            {% endif %}
+        </div>
+        <label>Replace photo (optional)</label>
+        <input type="file" name="photo">
+        <div style="display:flex;gap:10px;align-items:center;margin-top:12px;">
+            <button type="submit">Save Changes</button>
+            <a href="/admin"><button type="button">Cancel</button></a>
+        </div>
+    </form>
+</div>
+
+<script>
+(() => {
+    const latInput = document.getElementById('lat');
+    const lngInput = document.getElementById('lng');
+    // Parse initial coords from inputs (may be empty)
+    const initialLat = parseFloat(latInput.value) || 0;
+    const initialLng = parseFloat(lngInput.value) || 0;
+    const hasInitial = !!(latInput.value && lngInput.value);
+
+    const map = L.map('edit-map').setView(hasInitial ? [initialLat, initialLng] : [0,0], hasInitial ? 13 : 2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    let marker = null;
+    if(hasInitial){
+        marker = L.marker([initialLat, initialLng]).addTo(map);
+    }
+
+    map.on('click', (e) => {
+        const lat = e.latlng.lat.toFixed(6);
+        const lng = e.latlng.lng.toFixed(6);
+        latInput.value = lat;
+        lngInput.value = lng;
+        if(marker) map.removeLayer(marker);
+        marker = L.marker([lat, lng]).addTo(map);
+    });
+
+    // If user wants to manually edit coords remove readonly (still allowed via dev tools)
+    // but we'll keep inputs readonly to make map picking the default UX.
+})();
+</script>
+
+</body>
+</html>

@@ -108,6 +108,63 @@ def delete(id):
         con.close()
     return redirect("/admin")
 
+
+@app.route("/edit/<int:id>")
+def edit_page(id):
+    if not auth(): return redirect("/login")
+    con = db()
+    try:
+        row = con.execute("SELECT * FROM pins WHERE id=?", (id,)).fetchone()
+    finally:
+        con.close()
+    if not row:
+        return redirect('/admin')
+    keys = ["id", "name", "lat", "lng", "description", "photo_filename", "date"]
+    pin = dict(zip(keys, row))
+    return render_template('edit_photo.html', pin=pin)
+
+
+@app.route("/api/pins/edit/<int:id>", methods=["POST"])
+def edit_pin(id):
+    if not auth(): return "unauth",403
+    con = db()
+    try:
+        cur = con.execute("SELECT photo_filename FROM pins WHERE id=?", (id,))
+        old = cur.fetchone()
+        old_fn = old[0] if old else None
+        f = request.files.get('photo')
+        filename = old_fn
+        if f and f.filename:
+            filename = secure_filename(f.filename)
+            f.save(os.path.join(UPLOAD, filename))
+            # remove old file if it's different
+            if old_fn and old_fn != filename:
+                old_path = os.path.join(UPLOAD, old_fn)
+                try:
+                    if os.path.exists(old_path):
+                        os.remove(old_path)
+                except Exception:
+                    pass
+
+        con.execute(
+            """
+            UPDATE pins SET name=?, lat=?, lng=?, description=?, photo_filename=?, date=? WHERE id=?
+            """,
+            (
+                request.form.get('name'),
+                request.form.get('lat'),
+                request.form.get('lng'),
+                request.form.get('description'),
+                filename,
+                request.form.get('date'),
+                id,
+            ),
+        )
+        con.commit()
+    finally:
+        con.close()
+    return redirect('/admin')
+
 if __name__=="__main__":
     if not os.path.exists(DB):
         try:
